@@ -49,5 +49,9 @@ Convert to MP4 using HandBrake.
 Credits 🙌
 Built with ❤️ by t4tADd .
 
+
+
+p.s, will create chrome extension when i have the time
+
 Inspired by WebRTC.
 
