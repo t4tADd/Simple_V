@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Screen Recorder with Audio</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+    video { display: block; margin-top: 20px; max-width: 100%; }
+    label { display: block; margin: 10px 0; }
+  </style>
+</head>
+<body>
+  <h1>Screen Recorder with Audio</h1>
+  <label>
+    <input type="checkbox" id="audioToggle" checked> Include Audio
+  </label>
+  <button id="startBtn">Start Recording</button>
+  <button id="stopBtn" disabled>Stop Recording</button>
+  <video id="preview" controls></video>
+
+  <script>
+    let mediaRecorder;
+    let recordedChunks = [];
+
+    // Start Recording
+    document.getElementById('startBtn').addEventListener('click', async () => {
+      try {
+        const includeAudio = document.getElementById('audioToggle').checked;
+        const stream = await navigator.mediaDevices.getDisplayMedia({
+          video: { mediaSource: 'screen', width: 3840, height: 2160, frameRate: 60 },
+          audio: includeAudio ? { echoCancellation: true, noiseSuppression: true } : false
+        });
+
+        mediaRecorder = new MediaRecorder(stream, {
+          mimeType: 'video/webm;codecs=vp9,opus',
+          videoBitsPerSecond: 25_000_000,
+          audioBitsPerSecond: 128_000
+        });
+
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0) {
+            recordedChunks.push(event.data);
+          }
+        };
+
+        mediaRecorder.onstop = () => {
+          const blob = new Blob(recordedChunks, { type: 'video/webm' });
+          const url = URL.createObjectURL(blob);
+          document.getElementById('preview').src = url;
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `recording-${new Date().toISOString()}.webm`;
+          a.click();
+          recordedChunks = [];
+        };
+
+        mediaRecorder.start();
+        document.getElementById('startBtn').disabled = true;
+        document.getElementById('stopBtn').disabled = false;
+      } catch (error) {
+        console.error('Error starting recording:', error);
+      }
+    });
+
+    // Stop Rec(Hopefully it works)
+    document.getElementById('stopBtn').addEventListener('click', () => {
+      mediaRecorder.stop();
+      document.getElementById('startBtn').disabled = false;
+      document.getElementById('stopBtn').disabled = true;
+    });
+  </script>
+</body>
+</html>
