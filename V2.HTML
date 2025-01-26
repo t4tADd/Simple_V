@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Screen Recorder with Quality Options</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+    video { display: block; margin-top: 20px; max-width: 100%; }
+    label { display: block; margin: 10px 0; }
+    select, input { padding: 5px; margin: 5px 0; }
+  </style>
+</head>
+<body>
+  <h1>Screen Recorder with Quality Options</h1>
+  
+  <!-- Quality Options -->
+  <label>
+    Quality Preset:
+    <select id="qualityPreset">
+      <option value="custom">Custom</option>
+      <option value="1080p30">1080p @ 30 FPS</option>
+      <option value="1080p60">1080p @ 60 FPS</option>
+      <option value="1440p30">1440p @ 30 FPS</option>
+      <option value="1440p60">1440p @ 60 FPS</option>
+      <option value="4k30">4K @ 30 FPS</option>
+      <option value="4k60">4K @ 60 FPS</option>
+    </select>
+  </label>
+  
+  <label>
+    Custom Resolution:
+    <input type="number" id="customWidth" placeholder="Width" disabled> x
+    <input type="number" id="customHeight" placeholder="Height" disabled>
+  </label>
+  
+  <label>
+    Custom Frame Rate:
+    <input type="number" id="customFps" placeholder="FPS" disabled>
+  </label>
+  
+  <label>
+    <input type="checkbox" id="audioToggle" checked> Include Audio
+  </label>
+  
+  <!-- Buttons -->
+  <button id="startBtn">Start Recording</button>
+  <button id="stopBtn" disabled>Stop Recording</button>
+  
+  <!-- Preview -->
+  <video id="preview" controls></video>
+
+  <script>
+    let mediaRecorder;
+    let recordedChunks = [];
+
+    // Quality Presets
+    const qualityPresets = {
+      '1080p30': { width: 1920, height: 1080, frameRate: 30 },
+      '1080p60': { width: 1920, height: 1080, frameRate: 60 },
+      '1440p30': { width: 2560, height: 1440, frameRate: 30 },
+      '1440p60': { width: 2560, height: 1440, frameRate: 60 },
+      '4k30': { width: 3840, height: 2160, frameRate: 30 },
+      '4k60': { width: 3840, height: 2160, frameRate: 60 }
+    };
+
+    // Update Custom Inputs
+    document.getElementById('qualityPreset').addEventListener('change', (e) => {
+      const isCustom = e.target.value === 'custom';
+      document.getElementById('customWidth').disabled = !isCustom;
+      document.getElementById('customHeight').disabled = !isCustom;
+      document.getElementById('customFps').disabled = !isCustom;
+    });
+
+    // Start Recording
+    document.getElementById('startBtn').addEventListener('click', async () => {
+      try {
+        const includeAudio = document.getElementById('audioToggle').checked;
+        const preset = document.getElementById('qualityPreset').value;
+        const isCustom = preset === 'custom';
+
+        const width = isCustom ? parseInt(document.getElementById('customWidth').value) : qualityPresets[preset].width;
+        const height = isCustom ? parseInt(document.getElementById('customHeight').value) : qualityPresets[preset].height;
+        const frameRate = isCustom ? parseInt(document.getElementById('customFps').value) : qualityPresets[preset].frameRate;
+
+        const stream = await navigator.mediaDevices.getDisplayMedia({
+          video: { mediaSource: 'screen', width, height, frameRate },
+          audio: includeAudio ? { echoCancellation: true, noiseSuppression: true } : false
+        });
+
+        mediaRecorder = new MediaRecorder(stream, {
+          mimeType: 'video/webm;codecs=vp9,opus',
+          videoBitsPerSecond: width * height * frameRate * 0.1, // Adjust bitrate dynamically
+          audioBitsPerSecond: 128_000
+        });
+
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0) {
+            recordedChunks.push(event.data);
+          }
+        };
+
+        mediaRecorder.onstop = () => {
+          const blob = new Blob(recordedChunks, { type: 'video/webm' });
+          const url = URL.createObjectURL(blob);
+          document.getElementById('preview').src = url;
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `recording-${new Date().toISOString()}.webm`;
+          a.click();
+          recordedChunks = [];
+        };
+
+        mediaRecorder.start();
+        document.getElementById('startBtn').disabled = true;
+        document.getElementById('stopBtn').disabled = false;
+      } catch (error) {
+        console.error('Error starting recording:', error);
+      }
+    });
+
+    // Stop Recording
+    document.getElementById('stopBtn').addEventListener('click', () => {
+      mediaRecorder.stop();
+      document.getElementById('startBtn').disabled = false;
+      document.getElementById('stopBtn').disabled = true;
+    });
+  </script>
+</body>
+</html>
